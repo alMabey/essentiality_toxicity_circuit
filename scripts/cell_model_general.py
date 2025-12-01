@@ -1,7 +1,7 @@
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join('..')))
-from TXreg import *
+from scripts.TXreg_funcs import *
 import numpy as np
 from numba import njit
 
@@ -31,37 +31,37 @@ def BatchCultModel_DC(T, Y, hPR, xPR, SysTopol):
     #% ===== PARAMETERS =======================================================
 
     # --- Define host sYstem paramters ---------------------------------------d
-    sS    = hPR[0];
-    vT    = hPR[1]; vE   = hPR[2];
-    KmT   = hPR[3]; KmE  = hPR[4];
-    wX    = hPR[5]; wH   = hPR[6]; wR = hPR[7]; wr = hPR[8];
-    oX    = hPR[9]; oR   = hPR[10];
-    nX    = hPR[11]; nR   = hPR[12];
-    bX    = hPR[13]; uX   = hPR[14];
-    brho  = hPR[15]; urho = hPR[16];
-    deg_m = hPR[17];
-    kH    = hPR[18]; hH   = hPR[19];
-    maxG  = hPR[20]; kG   = hPR[21]; M0 = hPR[22];
-    xphi  = hPR[23]; vX   = hPR[24]; KmX = hPR[25];
+    sS    = hPR[0]
+    vT    = hPR[1]; vE   = hPR[2]
+    KmT   = hPR[3]; KmE  = hPR[4]
+    wX    = hPR[5]; wH   = hPR[6]; wR = hPR[7]; wr = hPR[8]
+    oX    = hPR[9]; oR   = hPR[10]
+    nX    = hPR[11]; nR   = hPR[12]
+    bX    = hPR[13]; uX   = hPR[14]
+    brho  = hPR[15]; urho = hPR[16]
+    deg_m = hPR[17]
+    kH    = hPR[18]; hH   = hPR[19]
+    maxG  = hPR[20]; kG   = hPR[21]; M0 = hPR[22]
+    xphi  = hPR[23]; vX   = hPR[24]; KmX = hPR[25]
 
     # --- Define pathway parameters ------------------------------------------
     w0          = xPR[0];  # leakiness of synthetic regulated promoters
     wE          = xPR[1]   # maximum TX rate of E
-    wEprod      = xPR[2];  # maximum TX rate of Ep
+    wEprod      = xPR[2];  # maximum TX rate of Eprod
     wTF         = xPR[3];  # maximum TX rate of TF biosensor
-    wEprotease  = xPR[4];  
-    wTprod      = xPR[5]
-    k_Eprod     = xPR[6]; Km_Eprod     = xPR[7]; # kcat and KM for Ep
-    k_Eprotease = xPR[8]; Km_Eprotease = xPR[9]; # kcat and KM for Ep
+    wEprotease  = xPR[4];  # maximum TX rate of Eprotease
+    wTprod      = xPR[5];  # maximum TX rate of the engineered product transporter Tprod
+    k_Eprod     = xPR[6]; Km_Eprod     = xPR[7]; # kcat and KM for Eprod
+    k_Eprotease = xPR[8]; Km_Eprotease = xPR[9]; # kcat and KM for Eprotease
     k_Tprod = xPR[10]; Km_Tprod = xPR[11]; # kcat and KM for Ep
 
     # --- Define pathway regulation parameters -------------------------------
     K_T            = xPR[12]
-    K_E            = xPR[13]; # biosensor affinitY for native E
-    K_Eprod        = xPR[14]; # biosensor affinitY for native E
-    K_Eprotease    = xPR[15]; # biosensor affinitY for TX of Ep
-    K_Tprod        = xPR[16]; 
-    K_TF           = xPR[17]; # biosensor affinitY for TF PAR
+    K_E            = xPR[13]; # biosensor affinity for native E. If this is on then P is essential for cell growth
+    K_Eprod        = xPR[14]; # biosensor affinity for the engineered Eprod
+    K_Eprotease    = xPR[15]; # biosensor affinity for the engineered Eprotease
+    K_Tprod        = xPR[16]; # biosensor affinity for the engineered Tprod
+    K_TF           = xPR[17]; # biosensor affinity for TF, if there is recursive control
 
     # --- Product passive diffusion parameters ------------------------------------------
     kdiffP  = xPR[18]; # rate of diffusion of product into and out of a single cell
@@ -69,16 +69,25 @@ def BatchCultModel_DC(T, Y, hPR, xPR, SysTopol):
     VolCult = xPR[20]; # working volume of culture in L
 
     # --- Transcription Factor - Product Binding and Unbinding Rates ------------------------------------------
-    ksf     = xPR[21]; # forward rate of TF sequestration by inducer I
-    ksr     = xPR[22]; # reverse rate of TF sequestration by inducer I
+    ksf     = xPR[21]; # binding rate of TF to P
+    ksr     = xPR[22]; # unbinding rate of TF_P
 
     # --- Define circuit topologies ------------------------------------------
-    ctT         = SysTopol[0]; # TF control on TX of T
-    ctE         = SysTopol[1]; # TF control on TX of E
-    ctEprod     = SysTopol[2]; # TF control on TX of Ep
-    ctTF        = SysTopol[3]; # TF autoregulation
-    ctEprotease = SysTopol[4];
-    ctTprod     = SysTopol[5]; # TF control on TX of Ep
+    # circuit network topology
+    ctT         = SysTopol[0]; # TF_P control on TX of T
+    ctE         = SysTopol[1]; # TF_P control on TX of E
+    ctEprod     = SysTopol[2]; # TF_P control on TX of Ep
+    ctTF        = SysTopol[3]; # TF_P control on TF
+    ctEprotease = SysTopol[4]; # TF_P control on Eprotease
+    ctTprod     = SysTopol[5]; # TF_P control on TX of the engineered P transporter Tp
+
+    #functions within topology (0 = Mannan 2025 TX regulation model)
+    T_TXmodel         = SysTopol[6]
+    E_TXmodel         = SysTopol[7]
+    Eprod_TXmodel     = SysTopol[8]
+    TF_TXmodel        = SysTopol[9]
+    Eprotease_TXmodel = SysTopol[10]
+    Tprod_TXmodel     = SysTopol[11]
 
     #% ===== CALCULATE RATES ==================================================
 
@@ -95,14 +104,15 @@ def BatchCultModel_DC(T, Y, hPR, xPR, SysTopol):
     g2mTF_mx = ((wTF*ee)/(oX + ee));
     g2mEprotease_mx = ((wEprotease*ee)/(oX + ee));
     g2mTprod_mx = ((wTprod*ee)/(oX + ee));
-    
+
     # include TF regulation of TX:
-    g2mT  = TXreg_jit(ctT,  w0, g2mT_mx,  K_T,  TF_P)
-    g2mE  = TXreg_jit(ctE,  w0, g2mE_mx,  K_E,  TF_P)
-    g2mEprod = TXreg_jit(ctEprod, w0, g2mEprod_mx, K_Eprod, TF_P)
-    g2mTF = TXreg_jit(ctTF, w0, g2mTF_mx, K_TF, TF_P)
-    g2mEprotease = TXreg_jit(ctEprotease, w0, g2mEprotease_mx, K_Eprotease, TF_P)
-    g2mTprod = TXreg_jit(ctTprod, w0, g2mTprod_mx, K_Tprod, TF_P)
+    TXmodels = [TXreg_mannan2025]
+    g2mT  = TXmodels[T_TXmodel](ctT,  w0, g2mT_mx,  K_T,  TF_P)
+    g2mE  = TXmodels[E_TXmodel](ctE,  w0, g2mE_mx,  K_E,  TF_P)
+    g2mEprod = TXmodels[Eprod_TXmodel](ctEprod, w0, g2mEprod_mx, K_Eprod, TF_P)
+    g2mTF = TXmodels[TF_TXmodel](ctTF, w0, g2mTF_mx, K_TF, TF_P)
+    g2mEprotease = TXmodels[Eprotease_TXmodel](ctEprotease, w0, g2mEprotease_mx, K_Eprotease, TF_P)
+    g2mTprod = TXmodels[Tprod_TXmodel](ctTprod, w0, g2mTprod_mx, K_Tprod, TF_P)
 
 
     # --- Define translation rates --------------------------------------------
@@ -136,7 +146,7 @@ def BatchCultModel_DC(T, Y, hPR, xPR, SysTopol):
     #r_Exp = ((pX*vX*iP)/(KmX + iP)) + ((pTprod*k_Tprod*iP)/(Km_Tprod + iP));
 
     # --- Protease-Ribosome Interaction ------------------------------------------------
-    r_E_protease = -k_Eprotease*pEprod/(Km_Eprotease + pEprod)
+    r_R_protease = k_Eprotease*pR*pEprotease/(Km_Eprotease + pR)
 
     #% ===== ENVIRONMENTAL ODEs ===============================================
 
@@ -161,7 +171,7 @@ def BatchCultModel_DC(T, Y, hPR, xPR, SysTopol):
     # --- metabolic enzyme (E) ------------------------------------------------
     dmE = g2mE - (lam + deg_m)*mE + m2pE - bX*pR*mE + uX*cE;
     dcE = - lam*cE + bX*pR*mE - uX*cE - m2pE;
-    dpE = m2pE - r_E_protease - lam*pE;
+    dpE = m2pE - lam*pE;
 
     # --- house-keeping proteins (H) ------------------------------------------
     dmH = g2mH - (lam + deg_m)*mH + m2pH - bX*pR*mH + uX*cH;
@@ -182,7 +192,8 @@ def BatchCultModel_DC(T, Y, hPR, xPR, SysTopol):
     # -- activated ribosome (in complex with ribosomal RNA), pR ---------------
     dpR = brho*xR*rr - urho*pR - lam*pR + m2pT  - bX*pR*mT  + uX*cT + m2pE  - bX*pR*mE  + uX*cE + m2pH  \
           - bX*pR*mH  + uX*cH + m2pX  - bX*pR*mX  + uX*cX + m2xR  - bX*pR*mR  + uX*cR                    \
-          + m2pEprod - bX*pR*mEprod + uX*cEprod + m2pTF - bX*pR*mTF + uX*cTF + m2pEprotease - bX*pR*mEprotease + uX*cEprotease + m2pTprod - bX*pR*mTprod + uX*cTprod;
+          + m2pEprod - bX*pR*mEprod + uX*cEprod + m2pTF - bX*pR*mTF + uX*cTF + m2pEprotease - bX*pR*mEprotease + uX*cEprotease + m2pTprod - bX*pR*mTprod + uX*cTprod \
+            - r_R_protease
 
     #% ===== pathway AND CIRCUIT ODEs =========================================
     # --- pathway enzyme (Ep) -------------------------------------------------
@@ -221,7 +232,7 @@ def BatchCultModel_DC(T, Y, hPR, xPR, SysTopol):
     ddiP = diP;
 
     # --- derivatives ---------------------------------------------------------
-    dY = np.empty(35, dtype=np.float64)
+    dY = np.empty(36, dtype=np.float64)
 
     # assign each element in order
     dY[:] = [
@@ -243,9 +254,10 @@ def BatchCultModel_DC(T, Y, hPR, xPR, SysTopol):
     TLrates = np.array([m2pT, m2pE, m2pH, m2xR, m2pX, m2pEprod, m2pTF, m2pEprotease, m2pTprod]);
 
     # --- protein masses and ribosomal mass fraction --------------------------
-    protmass = np.array([nX*pT, nX*pE, nX*pX, nX*pH, nR*(xR + pR + cT + cE + cH + cR + cX + cEprod + cTF + cEprotease, cTprod), nX*(pTF + TF_P), nX*pEprod, nX*pTprod]);
+    protmass = np.array([nX*pT, nX*pE, nX*pX, nX*pH, nR*(xR + pR + cT + cE + cH + cR + cX + cEprod + cTF + cEprotease 
+                                                         + cTprod), nX*(pTF + TF_P), nX*pEprod, nX*pTprod]);
     summass = np.sum(protmass);
-    ribomassfrac = (nR/M0)*(xR + pR + cT + cE + cH + cR + cX + cEprod + cTF + cEprotease, cTprod);
+    ribomassfrac = (nR/M0)*(xR + pR + cT + cE + cH + cR + cX + cEprod + cTF + cEprotease + cTprod);
 
     # ---- fluxes -------------------------------------------------------------
                      #s-> in  s->e    s -> P       P -> out
