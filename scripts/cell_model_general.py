@@ -69,7 +69,7 @@ def BatchCultModel_DC(T, Y, hPR, xPR, SysTopol):
     VolCult = xPR[20]; # working volume of culture in L
 
     # --- Transcription Factor - Product Binding and Unbinding Rates ------------------------------------------
-    ksf     = xPR[21]; # binding rate of TF to P
+    ksf     = xPR[21]; # binding rate of TF to P  
     ksr     = xPR[22]; # unbinding rate of TF_P
 
     # --- Define circuit topologies ------------------------------------------
@@ -146,7 +146,8 @@ def BatchCultModel_DC(T, Y, hPR, xPR, SysTopol):
     #r_Exp = ((pX*vX*iP)/(KmX + iP)) + ((pTprod*k_Tprod*iP)/(Km_Tprod + iP));
 
     # --- Protease-Ribosome Interaction ------------------------------------------------
-    r_R_protease = k_Eprotease*pR*pEprotease/(Km_Eprotease + pR)
+    r_pR_protease = k_Eprotease*pR*pEprotease/(Km_Eprotease + pR)
+    r_xR_protease = k_Eprotease*xR*pEprotease/(Km_Eprotease + xR)
 
     #% ===== ENVIRONMENTAL ODEs ===============================================
 
@@ -186,14 +187,14 @@ def BatchCultModel_DC(T, Y, hPR, xPR, SysTopol):
     # --- inactive ribosomes (xR) and rRNA (rr) -------------------------------
     dmR = g2mR - (lam + deg_m)*mR + m2xR - bX*pR*mR + uX*cR;
     dcR = - lam*cR + bX*pR*mR - uX*cR - m2xR;
-    dxR = m2xR - lam*xR - brho*xR*rr + urho*pR;
-    drr = g2rr - lam*rr - brho*xR*rr + urho*pR;
+    dxR = m2xR - lam*xR - brho*xR*rr + urho*pR - r_xR_protease;
+    drr = g2rr - lam*rr - brho*xR*rr + urho*pR + r_pR_protease;
 
     # -- activated ribosome (in complex with ribosomal RNA), pR ---------------
     dpR = brho*xR*rr - urho*pR - lam*pR + m2pT  - bX*pR*mT  + uX*cT + m2pE  - bX*pR*mE  + uX*cE + m2pH  \
           - bX*pR*mH  + uX*cH + m2pX  - bX*pR*mX  + uX*cX + m2xR  - bX*pR*mR  + uX*cR                    \
           + m2pEprod - bX*pR*mEprod + uX*cEprod + m2pTF - bX*pR*mTF + uX*cTF + m2pEprotease - bX*pR*mEprotease + uX*cEprotease + m2pTprod - bX*pR*mTprod + uX*cTprod \
-            - r_R_protease
+            - r_pR_protease
 
     #% ===== pathway AND CIRCUIT ODEs =========================================
     # --- pathway enzyme (Ep) -------------------------------------------------

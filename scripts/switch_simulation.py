@@ -10,16 +10,16 @@ from scipy.integrate import solve_ivp
 import sksundae as sun
 
 
-def batch_cult_sim(base_params, hPR, xPR, integration_method="BDF", plot=False, rtol=1E-6, atol=1E-9):
+def batch_cult_sim_switch(base_params, hPR, xPR_pre, xPR_post, integration_method="BDF", plot=False, rtol=1E-6, atol=1E-9):
 
     #################################################################################################################################
     #importing base parameters
-    xS0, runintmax, tmax, N0, topology = base_params
+    xS0, runintmax, tmax, tswitch, N0, topology = base_params
     #################################################################################################################################
     #simulating to get initial conditions
     y0 = np.zeros(36)
     y0[0] = 0 # N0
-    y0[1] = xS0 # xS0
+    y0[1] = 1e4 # xS0
     y0[3] = 1e6 # iS0
     y0[4] = 1e6 # ee0
     y0[7] = 1e2 # pT0
@@ -31,7 +31,7 @@ def batch_cult_sim(base_params, hPR, xPR, integration_method="BDF", plot=False, 
     t_eval = np.linspace(0.0, float(runintmax), 1000)
 
     sol = solve_ivp(
-        lambda t, y: BatchCultModel_SS(t, y, hPR, xPR, topology),
+        lambda t, y: BatchCultModel_SS(t, y, hPR, xPR_pre, topology),
         (0.0, float(runintmax)),
         y0,
         t_eval=t_eval,
@@ -55,8 +55,11 @@ def batch_cult_sim(base_params, hPR, xPR, integration_method="BDF", plot=False, 
 
     #################################################################################################################################
     # defining the RHS wrapper for cvode
-    def rhsfn(t, y, yp):
-        yp[:] = BatchCultModel_DC(t, y, hPR, xPR, topology)
+    def rhsfn_pre(t, y, yp):
+        yp[:] = BatchCultModel_DC(t, y, hPR, xPR_pre, topology)
+
+    def rhsfn_post(t, y, yp):
+        yp[:] = BatchCultModel_DC(t, y, hPR, xPR_post, topology)
 
     #################################################################################################################################
     #now simulating from induction
@@ -69,8 +72,8 @@ def batch_cult_sim(base_params, hPR, xPR, integration_method="BDF", plot=False, 
     event_xS_depletes.direction = [-1]
 
     #setting up the simulation and its hyperparameters
-    solver2 = sun.cvode.CVODE(
-        rhsfn,
+    solver_pre = sun.cvode.CVODE(
+        rhsfn_pre,
         method=integration_method,
         rtol=rtol,
         atol=atol,
@@ -80,9 +83,26 @@ def batch_cult_sim(base_params, hPR, xPR, integration_method="BDF", plot=False, 
     )
 
     #running the simulation
-    t_eval = np.array([0, float(tmax)])
-    sol   = solver2.solve(t_eval, np.asarray(y_init, dtype=float))
-    t = sol.t; y = sol.y                 
-    y = np.array([y[:, j].copy() for j in range(y.shape[1])]) 
+    t_eval_pre = np.array([0, float(tswitch)])
+    sol_pre   = solver_pre.solve(t_eval_pre, np.asarray(y_init, dtype=float))
+    t_pre = sol_pre.t; y_pre = sol_pre.y                 
+    y_pre = np.array([y_pre[:, j].copy() for j in range(y_pre.shape[1])])
+    y_switch = y_pre[:, -1]; switch_idx = len(t_pre)
 
-    return t, y
+    solver_post = sun.cvode.CVODE(
+        rhsfn_post,
+        method=integration_method,
+        rtol=rtol,
+        atol=atol,
+        eventsfn=event_xS_depletes,
+        num_events=1,
+        max_num_steps=200000     
+    )
+    t_eval_post = np.array([float(tswitch), tmax])
+    sol_post   = solver_post.solve(t_eval_post, np.asarray(y_switch, dtype=float))
+    t_post = sol_post.t; y_post = sol_post.y                 
+    y_post = np.array([y_post[:, j].copy() for j in range(y_post.shape[1])])
+
+    T = np.concatenate([t_pre, t_post]); Y = np.concatenate([y_pre, y_post], axis=1)
+
+    return T, Y, switch_idx

@@ -77,8 +77,8 @@ def model_params(sS0, vX0, KmX0, VolCult0):
     kdiffP  = 3600/60;         # 19 1/min - rate of diffusion of inducer into and out of a single cell
     VolCell = 1e-15;           # 20 volume of cell in L - based on 1uM wide by 2uM sized E. coli cell (Neidhardt (1990))
     VolCult = VolCult0;        # 21 working volume of culture in L - based on a 3L benchtop vessel
-    ksf     = 1057.7/60;       # 22 1/(molecules^2.min) - forward rate of TF sequestration by inducer I - based on Mannan & Bates (2021)
-    ksr     = 1292.1/60;       # 23 1/min - reverse rate of TF sequestration by inducer I, based on Mannan & Bates (2021)
+    ksf     = 0.1;       # 22 1/(molecules^2.min) - forward rate of TF sequestration by inducer I - based on Mannan & Bates (2021)
+    ksr     = 1000;       # 23 1/min - reverse rate of TF sequestration by inducer I, based on Mannan & Bates (2021)
 
     # --- Return vectors -----------------------------------------------------
 
@@ -89,4 +89,4 @@ def model_params(sS0, vX0, KmX0, VolCult0):
     # ... params of exogenous components:
     x_params   = [w0, wE, wEprod, wTF, wEprotease, wTprod, k_Eprod, Km_Eprod, k_Eprotease, Km_Eprotease, k_Tprod, Km_Tprod, K_T, K_E, K_Eprod, K_Eprotease, K_Tprod, K_TF, kdiffP, VolCell, VolCult, ksf, ksr]
 
-    return [h_params,x_params]
+    return [h_params,x_params] 
