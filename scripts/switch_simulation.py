@@ -5,7 +5,7 @@ sys.path.append(directory)
 import numpy as np
 from matplotlib import pyplot as plt
 from scripts.model_params import *
-from scripts.cell_model_general import *
+from scripts.cell_model import *
 from scipy.integrate import solve_ivp
 import sksundae as sun
 

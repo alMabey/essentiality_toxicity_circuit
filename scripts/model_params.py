@@ -1,7 +1,7 @@
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join('..')))
-def model_params(sS0, vX0, KmX0, VolCult0):
+def model_params(sS0, vX0, KmX0, VolCult0, leaky_control=False):
 
 
     # --- Parameters of host components --------------------------------------
@@ -44,34 +44,29 @@ def model_params(sS0, vX0, KmX0, VolCult0):
     # --- Parameters of exogenous components ---------------------------------
 
     # Parameters of TX expression and kinetics of heterologous enzymes:
-    w0         = 1e-4;            # 1 leakiness of the artifical promoters as a fraction of their maximum transcription rate (%)
+    if leaky_control:
+        w0 = 1e-4;            # 1 leakiness of the artifical promoters as a fraction of their maximum transcription rate (%)
+    else:
+        w0 = 0
 
-    wEprod     = 20;              # 2 max transcription rate of Ep
-    k_Eprod    = vE; Km_Eprod = KmE; # 5,6 kcat and Km for kinetics of Ep
+    wEp     = 20;              # 2 max transcription rate of Ep
+    k_Ep    = vE; Km_Ep = KmE; # 5,6 kcat and Km for kinetics of Ep
 
     wTF        = 20;
 
-    wEprotease = 20;
-    k_Eprotease = vE; Km_Eprotease = KmE
+    wpTox = 20;
 
-    wTprod     = 20;              # 3 max transcription rate of Tp
-    k_Tprod    = vT; Km_Tprod = KmT; # 1e5*KmT; % 7,8 kcat and Km for kinetics of Tp
+    wTp     = 20;              # 3 max transcription rate of Tp
+    k_Tp    = vT; Km_Tp = KmT; # 1e5*KmT; % 7,8 kcat and Km for kinetics of Tp
+
+    # Parameters for toxicity
+    a_energy_pTox = 1E4
+    a_elongation_pTox = 1E4
 
 
-    # Parameters of the control system
-    K_T     = 1/(1000/300);    # 14 (1/molecules) - biosensor affinity for native T
-    K_E     = 1/(1000/300);    # 15 (1/molecules) - biosensor affinity for native E
-    K_Eprod = 1/(1000/300);    # 16 (1/molecules) assuming 1nM = 1 molecule - (1000/(300 1/uM)) - based on affinity of 300uM from Mannan & Bates (2021) - biosensor affinity to bind to inhibit TX of Ep
-    K_TF    = 1/(1000/300);    # 18 (1/molecules) - biosensor affinity for TF PAR
-    K_Eprotease = 1/(1000/300); 
-    K_Tprod = 1/(1000/300);    # 17 (1/molecules) - biosensor affinity for TX of Tp
-
-    K_T     = 0;    
+    # Parameters of the control system 
     K_E     = 1/(1000/300);    
-    K_Eprod = 0;    
-    K_TF    = 0;    
-    K_Eprotease = 1/(1000/300); 
-    K_Tprod = 0;    
+    K_pTox = 1/(1000/300); 
 
     # Parameters for inducer uptake and induction:
     kdiffP  = 3600/60;         # 19 1/min - rate of diffusion of inducer into and out of a single cell
@@ -85,8 +80,7 @@ def model_params(sS0, vX0, KmX0, VolCult0):
     # Define vector of ...
     # ... params of endogenous components:
     h_params   = [sS, vT, vE, KmT, KmE, wX, wH, wR, wr, oX, oR, nX, nR, bX, uX, brho, urho, deg_m, kH, hH, maxG, kG, M0, xphi, vX, KmX]
-
     # ... params of exogenous components:
-    x_params   = [w0, wE, wEprod, wTF, wEprotease, wTprod, k_Eprod, Km_Eprod, k_Eprotease, Km_Eprotease, k_Tprod, Km_Tprod, K_T, K_E, K_Eprod, K_Eprotease, K_Tprod, K_TF, kdiffP, VolCell, VolCult, ksf, ksr]
+    x_params   = [w0, wE, wEp, wTF, wpTox, wTp, k_Ep, Km_Ep, k_Tp, Km_Tp, a_energy_pTox, a_elongation_pTox, K_E, K_pTox, kdiffP, VolCell, VolCult, ksf, ksr]
 
     return [h_params,x_params] 
