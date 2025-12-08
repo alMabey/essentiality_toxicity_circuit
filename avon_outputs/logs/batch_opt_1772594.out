@@ -1,0 +1,10 @@
+No partial checkpoint found — starting fresh.
+Running command:
+  python RUN_multiobj_optimisation.py         --case test_run         --param-indices 2,3         --lower-bounds 0,0         --upper-bounds 100,100         --topology 1,0,0,0,1,0         --n-proc 48         --pop-size-ga 30         --n-gen-ga   60
+
+Traceback (most recent call last):
+  File "/gpfs/home/rawsys/matmfc/essentiality_toxicity_circuit/main_scripts/RUN_multiobj_optimisation.py", line 23, in <module>
+    from pymoo.factory import get_sampling
+ModuleNotFoundError: No module named 'pymoo.factory'
+srun: error: node135: task 0: Exited with exit code 1
+srun: launch/slurm: _step_signal: Terminating StepId=1772594.0
