@@ -15,7 +15,6 @@ def batch_cult_sim(base_params, hPR, xPR, integration_method="BDF", plot=False, 
     #################################################################################################################################
     #importing base parameters
     xS0, kin, runintmax, tmax, N0, topology = base_params
-
     if kin == 0:
         hPR[-1] = 0
     #################################################################################################################################
@@ -63,6 +62,8 @@ def batch_cult_sim(base_params, hPR, xPR, integration_method="BDF", plot=False, 
 
     #################################################################################################################################
     # event to make the simulation end once xS hits or crosses zero
+    excluded = []
+    constrained_idx = [i for i in range(33) if i not in excluded]
     if kin == 0:
         EPS = 1e-12
         def event_xS_depletes(t, y, events):
@@ -81,16 +82,15 @@ def batch_cult_sim(base_params, hPR, xPR, integration_method="BDF", plot=False, 
             max_num_steps=200000     
         )
     else:
-        constraints_idx = list(range(32))
+        constraints_type = [1.0]*len(constrained_idx)            # Python list, NOT numpy
         solver = sun.cvode.CVODE(
             rhsfn,
             method=integration_method,
             rtol=rtol,
             atol=atol,
-            max_num_steps=200000,
-            constraints_idx=constraints_idx,     # plain list, not ndarray
-            constraints_type=[1] * len(constraints_idx),
-
+            constraints_idx=constrained_idx,     # plain list, not ndarray
+            constraints_type=constraints_type,
+            max_step=0.1
         )
 
     #running the simulation

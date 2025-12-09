@@ -24,12 +24,10 @@ def TXreg_mannan2025(eta, w0, g2m_mx, K, TF_P):
 
 @njit(cache=True)
 def TXreg_ess(w0, g2m_mx, K, TF_P):
-    # guard against slight negatives
     TF_P_eff = 0.0 if TF_P < 0.0 else TF_P
     return (w0 * g2m_mx) + g2m_mx*(TF_P_eff**2)/(K**2 + TF_P_eff**2)
 
 @njit(cache=True)
 def TXreg_tox(w0, g2m_mx, K, TF_P):
-    # guard against slight negatives
     TF_P_eff = 0.0 if TF_P < 0.0 else TF_P
     return (w0 * g2m_mx) + g2m_mx*(1-(TF_P_eff**2)/(K**2 + TF_P_eff**2))

@@ -6,7 +6,7 @@ def model_params(sS0, vX0, KmX0, VolCult0, leaky_control=False):
 
     # --- Parameters of host components --------------------------------------
     # Cell Death parameter
-    dN = 0
+    dN = 0.01
     # Nutrients
     sS      = sS0;          # 2 nutrient efficiency (i.e. stoichiometry of substrate to precursors conversion)
     vT      = 728;          # 3 kcat of transport rxn
