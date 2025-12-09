@@ -5,12 +5,16 @@ from scripts.TXreg_funcs import *
 import numpy as np
 from numba import njit
 
-@njit
-def fedbatch_func(xS, xS_thresh):
-    return 1 if xS < xS_thresh else 0
+@njit(cache=True, fastmath=True)
+def simple_batch_culture(T):
+    return 0
 
 @njit(cache=True, fastmath=True)
-def FedbatchCultModel_DC(T, Y, hPR, xPR, SysTopol, xS_thresh):
+def fedbatch_culture(T):
+    return 
+
+@njit(cache=True, fastmath=True)
+def BatchCultModel_DC(T, Y, hPR, xPR, SysTopol, kin):
 
     # --- Define external variables -------------------------------------------
     N  = Y[0]; # total biomass
@@ -45,35 +49,39 @@ def FedbatchCultModel_DC(T, Y, hPR, xPR, SysTopol, xS_thresh):
     kH    = hPR[18]; hH   = hPR[19]
     maxG  = hPR[20]; kG   = hPR[21]; M0 = hPR[22]
     xphi  = hPR[23]
+    dN    = hPR[24]
+
+
 
     # --- Define pathway parameters ------------------------------------------
     w0          = xPR[0];  # leakiness of synthetic regulated promoters
-    wE          = xPR[1]   # maximum TX rate of E
-    wEp         = xPR[2];  # maximum TX rate of Eprod
-    wTF         = xPR[3];  # maximum TX rate of TF biosensor
-    wpTox       = xPR[4];  # maximum TX rate of Eprotease
-    wTp         = xPR[5];  # maximum TX rate of the engineered product transporter Tprod
+    wT          = xPR[1]
+    wE          = xPR[2]   # maximum TX rate of E
+    wEp         = xPR[3];  # maximum TX rate of Eprod
+    wTF         = xPR[4];  # maximum TX rate of TF biosensor
+    wpTox       = xPR[5];  # maximum TX rate of Eprotease
+    wTp         = xPR[6];  # maximum TX rate of the engineered product transporter Tprod
 
     # --- Heterologous Enzyme Rates ------------------------------------------
-    k_Ep = xPR[6]; Km_Ep = xPR[7]; # kcat and KM for Eprod
-    k_Tp = xPR[8]; Km_Tp = xPR[9]; # kcat and KM for Ep
+    k_Ep = xPR[7]; Km_Ep = xPR[8]; # kcat and KM for Eprod
+    k_Tp = xPR[9]; Km_Tp = xPR[10]; # kcat and KM for Ep
 
     #--- Toxic Protein Curve Parameter ------------------------------------------
-    a_energy_pTox = xPR[10]
-    a_elongation_pTox = xPR[11]
+    a_energy_pTox = xPR[11]
+    a_elongation_pTox = xPR[12]
 
     # --- Define pathway regulation parameters -------------------------------
-    K_E       = xPR[12]; # biosensor affinity for native E. If this is on then P is essential for cell growth
-    K_pTox    = xPR[13]; # biosensor affinity for the engineered toxic protein pTox
+    K_E       = xPR[13]; # biosensor affinity for native E. If this is on then P is essential for cell growth
+    K_pTox    = xPR[14]; # biosensor affinity for the engineered toxic protein pTox
 
     # --- Product passive diffusion parameters ------------------------------------------
-    kdiffP  = xPR[14]; # rate of diffusion of product into and out of a single cell
-    VolCell = xPR[15]; # volume of cell in L
-    VolCult = xPR[16]; # working volume of culture in L
+    kdiffP  = xPR[15]; # rate of diffusion of product into and out of a single cell
+    VolCell = xPR[16]; # volume of cell in L
+    VolCult = xPR[17]; # working volume of culture in L
 
     # --- Transcription Factor - Product Binding and Unbinding Rates ------------------------------------------
-    ksf     = xPR[17]; # binding rate of TF to P  
-    ksr     = xPR[18]; # unbinding rate of TF_P
+    ksf     = xPR[18]; # binding rate of TF to P  
+    ksr     = xPR[19]; # unbinding rate of TF_P
 
     # --- Define circuit topologies ------------------------------------------
     lin_trans      = SysTopol[0]; # indicator variable for linear transport
@@ -92,7 +100,7 @@ def FedbatchCultModel_DC(T, Y, hPR, xPR, SysTopol, xS_thresh):
     g2mH     = ((wH*ee)/(oX + ee))*(1/(1+(pH/kH)**hH));
     g2mR     = ((wR*ee)/(oR + ee));
     g2rr     = ((wr*ee)/(oR + ee));
-    g2mT     = ((wX*ee)/(oX + ee));
+    g2mT     = ((wT*ee)/(oX + ee));
     g2mEp    = ((wEp*ee)/(oX + ee));
     g2mTp    = ((wTp*ee)/(oX + ee));
     g2mTF    = ((wTF*ee)/(oX + ee));
@@ -102,8 +110,8 @@ def FedbatchCultModel_DC(T, Y, hPR, xPR, SysTopol, xS_thresh):
     g2mE_mx  = ((wE*ee)/(oX + ee));
 
     # include TF-P regulation
-    g2mE  = TXreg(1, w0, g2mE_mx,  K_E,  TF_P)
-    g2mpTox = TXreg(-1, w0, g2mpTox_mx, K_pTox, TF_P)
+    g2mE  = TXreg_ess(w0, g2mE_mx,  K_E,  TF_P)
+    g2mpTox = TXreg_mannan2025(-1, w0, g2mpTox_mx, K_pTox, TF_P)
 
     # --- Define translation rates --------------------------------------------
     # global translation rate (elongation rate):
@@ -134,9 +142,9 @@ def FedbatchCultModel_DC(T, Y, hPR, xPR, SysTopol, xS_thresh):
     #% ===== ENVIRONMENTAL ODEs ===============================================
 
     # --- total biomass -------------------------------------------------------
-    dN = (lam*N);
+    dNdt = (lam*N) - dN*N;
 
-    dxS = - (r_U*N) + fedbatch_func(xS, xS_thresh)*(r_U*N)
+    dxS = kin - (r_U*N)
 
     # --- total product in media ----------------------------------------------
     dxP = (r_Exp*N);
@@ -181,7 +189,6 @@ def FedbatchCultModel_DC(T, Y, hPR, xPR, SysTopol, xS_thresh):
 
     # --- metabolism - formation of intracellular product ---------------------
     diP  = r_Psynth_is - r_Exp - lam*iP - ksf*pTF*iP + ksr*TF_P;
-    dxP = r_Exp
 
     # --- TF biosensor --------------------------------------------------------
     dmTF = g2mTF - (lam + deg_m)*mTF + m2pTF - bX*pR*mTF + uX*cTF;
@@ -205,7 +212,7 @@ def FedbatchCultModel_DC(T, Y, hPR, xPR, SysTopol, xS_thresh):
     dY = np.empty(33, dtype=np.float64)
     # assign each element in order
     dY[:] = [
-        dN, dxS, dxP,
+        dNdt, dxS, dxP,
         diS, dee,
         dmT, dcT, dpT,
         dmE, dcE, dpE,
@@ -235,15 +242,13 @@ def FedbatchCultModel_DC(T, Y, hPR, xPR, SysTopol, xS_thresh):
 
 
 @njit(cache=True, fastmath=True)
-def FedbatchCultModel_SS(T, Y, hPR, xPR, SysTopol):
+def BatchCultModel_SS(T, Y, hPR, xPR, SysTopol):
 
     # --- Calculate derivative ------------------------------------------------
-    dY = FedbatchCultModel_DC(T, Y, hPR, xPR, SysTopol, 0)
+    dY = BatchCultModel_DC(T, Y, hPR, xPR, SysTopol, 0)
 
     # --- Make extracellular reactions zero -----------------------------------
     dY[0] = 0
     dY[1] = 0
-    dY[2] = 0
 
     return dY
-    
