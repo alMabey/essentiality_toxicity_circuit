@@ -5,6 +5,8 @@ def model_params(sS0, vX0, KmX0, VolCult0, leaky_control=False):
 
 
     # --- Parameters of host components --------------------------------------
+    # Cell Death parameter
+    dN = 0
     # Nutrients
     sS      = sS0;          # 2 nutrient efficiency (i.e. stoichiometry of substrate to precursors conversion)
     vT      = 728;          # 3 kcat of transport rxn
@@ -61,9 +63,8 @@ def model_params(sS0, vX0, KmX0, VolCult0, leaky_control=False):
     k_Tp    = vT; Km_Tp = KmT; # 1e5*KmT; % 7,8 kcat and Km for kinetics of Tp
 
     # Parameters for toxicity
-    a_energy_pTox = 0.5E4
-    a_elongation_pTox = 0.5E4
-
+    a_energy_pTox = 50
+    a_elongation_pTox = 50
 
     # Parameters of the control system 
     K_E     = 1/(1000/300);    
@@ -74,13 +75,13 @@ def model_params(sS0, vX0, KmX0, VolCult0, leaky_control=False):
     VolCell = 1e-15;           # 20 volume of cell in L - based on 1uM wide by 2uM sized E. coli cell (Neidhardt (1990))
     VolCult = VolCult0;        # 21 working volume of culture in L - based on a 3L benchtop vessel
     ksf     = 0.1;       # 22 1/(molecules^2.min) - forward rate of TF sequestration by inducer I - based on Mannan & Bates (2021)
-    ksr     = 1000;       # 23 1/min - reverse rate of TF sequestration by inducer I, based on Mannan & Bates (2021)
+    ksr     = 10000;       # 23 1/min - reverse rate of TF sequestration by inducer I, based on Mannan & Bates (2021)
 
     # --- Return vectors -----------------------------------------------------
 
     # Define vector of ...
     # ... params of endogenous components:
-    h_params   = [sS, vT, vE, KmT, KmE, wX, wH, wR, wr, oX, oR, nX, nR, bX, uX, brho, urho, deg_m, kH, hH, maxG, kG, M0, xphi]
+    h_params   = [sS, vT, vE, KmT, KmE, wX, wH, wR, wr, oX, oR, nX, nR, bX, uX, brho, urho, deg_m, kH, hH, maxG, kG, M0, xphi, dN]
     # ... params of exogenous components:
     x_params   = [w0, wT, wE, wEp, wTF, wpTox, wTp, k_Ep, Km_Ep, k_Tp, Km_Tp, a_energy_pTox, a_elongation_pTox, K_E, K_pTox, kdiffP, VolCell, VolCult, ksf, ksr]
 
